@@ -9,28 +9,45 @@ namespace mbgl {
 namespace style {
 namespace expression {
 
-Collator::Collator(bool , bool , const std::string& )
+class Collator::Impl {
+public:
+    Impl(bool, bool, optional<std::string>)
     {}
 
-Collator::Collator(bool , bool )
-    {}
+    bool operator==(const Impl&) const {
+        return false;
+    }
 
-bool Collator::operator==(const Collator& ) const {
-    return true;
+    int compare(const std::string&, const std::string&) const {
+        return 0;
+    }
+
+    std::string resolvedLocale() const {
+        return "";
+    }
+private:
+};
+
+
+Collator::Collator(bool caseSensitive, bool diacriticSensitive, optional<std::string> locale_)
+    : impl(std::make_unique<Impl>(caseSensitive, diacriticSensitive, std::move(locale_)))
+{}
+
+bool Collator::operator==(const Collator& other) const {
+    return *impl == *(other.impl);
 }
 
-int Collator::compare(const std::string&, const std::string&) const {
-    return 0;
+int Collator::compare(const std::string& lhs, const std::string& rhs) const {
+    return impl->compare(lhs, rhs);
 }
 
-const std::string& Collator::resolvedLocale() const {
-    static std::string placeholder;
-    return placeholder;
+std::string Collator::resolvedLocale() const {
+    return impl->resolvedLocale();
 }
+
 mbgl::Value Collator::serialize() const {
     return mbgl::Value(true);
 }
-
 
 } // namespace expression
 } // namespace style
