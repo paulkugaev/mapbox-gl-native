@@ -1,10 +1,7 @@
 #include <mbgl/style/expression/collator.hpp>
 #include <mbgl/util/platform.hpp>
 
-#define NU_WITH_UTF8
-#define NU_WITH_Z_COLLATION
-#define NU_WITH_UNACCENT
-#include <libnu/libnu.h>
+#include <nunicode/libnu.h>
 
 #include <sstream>
 

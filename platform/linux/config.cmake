@@ -1,7 +1,8 @@
+include(cmake/nunicode.cmake)
+
 mason_use(glfw VERSION 2017-07-13-67c9155)
 mason_use(sqlite VERSION 3.14.2)
 mason_use(libuv VERSION 1.9.1)
-mason_use(nunicode VERSION 1.8)
 mason_use(libpng VERSION 1.6.25)
 mason_use(libjpeg-turbo VERSION 1.5.0)
 mason_use(webp VERSION 0.5.1)
@@ -86,7 +87,8 @@ macro(mbgl_platform_core)
         PRIVATE platform/linux
     )
 
-    target_add_mason_package(mbgl-core PUBLIC nunicode)
+    mbgl_nunicode_core()
+
     target_add_mason_package(mbgl-core PUBLIC libpng)
     target_add_mason_package(mbgl-core PUBLIC libjpeg-turbo)
     target_add_mason_package(mbgl-core PUBLIC webp)

@@ -23,7 +23,7 @@ function generateCMakeListFile(name, regex, patterns) {
 }
 
 generateCMakeListFile('core', /^(?:src|include)\/(?:mbgl\/)?(.+)\/[^\/]+$/,
-    [ 'include/*.hpp', 'include/*.h', 'src/*.hpp', 'src/*.cpp', 'src/*.h', 'src/*.c' ]);
+    [ 'include/*.hpp', 'include/*.h', 'src/*.hpp', 'src/*.cpp', 'src/parsedate/*.h', 'src/parsedate/*.c' ]);
 
 generateCMakeListFile('benchmark', /^benchmark\/(?:(?:src|include)\/)?(?:mbgl\/)?(?:(.+)\/)?[^\/]+$/,
     [ 'benchmark/*.hpp', 'benchmark/*.cpp', 'benchmark/*.h', 'benchmark/*.c' ]);
