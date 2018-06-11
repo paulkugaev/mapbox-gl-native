@@ -189,6 +189,8 @@ void registerNatives(JavaVM *vm) {
 
     // text
     LocalGlyphRasterizer::registerNative(env);
+    Locale::registerNative(env);
+    Collator::registerNative(env);
 }
 
 } // namespace android

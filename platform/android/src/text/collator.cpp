@@ -1,4 +1,5 @@
 #include <mbgl/style/expression/collator.hpp>
+#include <mbgl/text/language_tag.hpp>
 #include <mbgl/util/platform.hpp>
 
 #include <jni/jni.hpp>
@@ -6,9 +7,8 @@
 #include "../attach_env.hpp"
 #include "collator_jni.hpp"
 
-// TODO: This Android collator stub should hook up to
-// https://developer.android.com/reference/java/text/Collator
-// via JNI
+
+#include <mbgl/util/logging.hpp>
 
 namespace mbgl {
 namespace android {
@@ -41,6 +41,9 @@ void Locale::registerNative(jni::JNIEnv& env) {
     javaClass = *jni::Class<Locale>::Find(env).NewGlobalRef(env).release();
 }
 
+    /*
+We would prefer to use for/toLanguageTag, but they're only available in API level 21+
+
 jni::Object<Locale> Locale::forLanguageTag(jni::JNIEnv& env, jni::String languageTag) {
     using Signature = jni::Object<Locale>(jni::String);
     auto method = javaClass.GetStaticMethod<Signature>(env, "forLanguageTag");
@@ -51,6 +54,36 @@ jni::String Locale::toLanguageTag(jni::JNIEnv& env, jni::Object<Locale> locale) 
     using Signature = jni::String();
     auto static method = javaClass.GetMethod<Signature>(env, "toLanguageTag");
     return locale.Call(env, method);
+}
+     */
+
+
+jni::String Locale::getLanguage(jni::JNIEnv& env, jni::Object<Locale> locale) {
+    using Signature = jni::String();
+    auto static method = javaClass.GetMethod<Signature>(env, "getLanguage");
+    return locale.Call(env, method);
+}
+
+jni::String Locale::getCountry(jni::JNIEnv& env, jni::Object<Locale> locale) {
+    using Signature = jni::String();
+    auto static method = javaClass.GetMethod<Signature>(env, "getCountry");
+    return locale.Call(env, method);
+}
+
+jni::Object<Locale> Locale::getDefault(jni::JNIEnv& env) {
+    using Signature = jni::Object<Locale>();
+    auto method = javaClass.GetStaticMethod<Signature>(env, "getDefault");
+    return javaClass.Call(env, method);
+}
+
+jni::Object<Locale> Locale::New(jni::JNIEnv& env, jni::String language) {
+    static auto constructor = javaClass.GetConstructor<jni::String>(env);
+    return javaClass.New(env, constructor, language);
+}
+
+jni::Object<Locale> Locale::New(jni::JNIEnv& env, jni::String language, jni::String region) {
+    static auto constructor = javaClass.GetConstructor<jni::String, jni::String>(env);
+    return javaClass.New(env, constructor, language, region);
 }
 
 jni::Class<Locale> Locale::javaClass;
@@ -65,20 +98,36 @@ public:
     Impl(bool caseSensitive_, bool diacriticSensitive_, optional<std::string> locale_)
         : caseSensitive(caseSensitive_)
         , diacriticSensitive(diacriticSensitive_)
+        , env(android::AttachEnv())
     {
-        android::UniqueEnv env { android::AttachEnv() }; // TODO: How does it work to hold onto jni Objects long term?
-        jni::String languageTag = jni::Make<jni::String>(*env, locale_ ? *locale_ : "");
-        locale = android::Locale::forLanguageTag(*env, languageTag);
-        collator = android::Collator::getInstance(*env, locale);
+        mbgl::Log::Debug(Event::General, "creating locale");
+        LanguageTag languageTag = locale_ ? LanguageTag::fromBCP47(*locale_) : LanguageTag();
+        if (!languageTag.language) {
+            mbgl::Log::Debug(Event::General, "getDefault");
+            locale = android::Locale::getDefault(*env).NewGlobalRef(*env);
+        } else if (!languageTag.region) {
+            mbgl::Log::Debug(Event::General, "language only");
+            locale = android::Locale::New(*env,
+                                          jni::Make<jni::String>(*env, *(languageTag.language)))
+                    .NewGlobalRef(*env);
+        } else {
+            mbgl::Log::Debug(Event::General, "language and region");
+            locale = android::Locale::New(*env,
+                                          jni::Make<jni::String>(*env, *(languageTag.language)),
+                                          jni::Make<jni::String>(*env, *(languageTag.region)))
+                    .NewGlobalRef(*env);
+        }
+        mbgl::Log::Debug(Event::General, "creating collator");
+        collator = android::Collator::getInstance(*env, *locale).NewGlobalRef(*env);;
+        mbgl::Log::Debug(Event::General, "setting strength");
         if (!diacriticSensitive) {
             // Only look for "base letter" differences, we'll look at case independently
-            android::Collator::setStrength(*env, collator, 0 /*PRIMARY*/);
+            android::Collator::setStrength(*env, *collator, 0 /*PRIMARY*/);
         } else if (diacriticSensitive && !caseSensitive) {
-            android::Collator::setStrength(*env, collator, 1 /*PRIMARY*/);
+            android::Collator::setStrength(*env, *collator, 1 /*SECONDARY*/);
         } else if (diacriticSensitive && caseSensitive) {
-            android::Collator::setStrength(*env, collator, 2 /*TERTIARY*/);
+            android::Collator::setStrength(*env, *collator, 2 /*TERTIARY*/);
         }
-        //  is tricky, no native support
     }
 
     bool operator==(const Impl& other) const {
@@ -88,12 +137,11 @@ public:
     }
 
     int compare(const std::string& lhs, const std::string& rhs) const {
-        android::UniqueEnv env { android::AttachEnv() };
-
         jni::String jlhs = jni::Make<jni::String>(*env, lhs);
         jni::String jrhs = jni::Make<jni::String>(*env, rhs);
 
-        jni::jint result = android::Collator::compare(*env, collator, jlhs, jrhs);;
+        mbgl::Log::Debug(Event::General, "comparing strings");
+        jni::jint result = android::Collator::compare(*env, *collator, jlhs, jrhs);;
         if (!diacriticSensitive && caseSensitive) {
             // java.text.Collator doesn't support a diacritic-insensitive/case-sensitive collation
             // order, so we have to compromise a little here.
@@ -120,17 +168,28 @@ public:
     }
 
     std::string resolvedLocale() const {
-        android::UniqueEnv env { android::AttachEnv() };
-        jni::String languageTag = android::Locale::toLanguageTag(*env, locale);
-        std::string result = jni::Make<std::string>(*env, languageTag);
-        jni::DeleteLocalRef(*env, languageTag);
-        return result;
+        mbgl::Log::Debug(Event::General, "resolving locale");
+        jni::String jLanguage = android::Locale::getLanguage(*env, *locale);
+        std::string language = jni::Make<std::string>(*env, jLanguage);
+        jni::DeleteLocalRef(*env, jLanguage);
+        jni::String jRegion = android::Locale::getCountry(*env, *locale);
+        std::string region = jni::Make<std::string>(*env, jRegion);
+        jni::DeleteLocalRef(*env, jRegion);
+
+        optional<std::string> resultLanguage;
+        if (!language.empty()) resultLanguage = language;
+        optional<std::string> resultRegion;
+        if (!region.empty()) resultRegion = region;
+
+        return LanguageTag(resultLanguage, {}, resultRegion).toBCP47();
     }
 private:
-    jni::Object<android::Collator> collator;
-    jni::Object<android::Locale> locale;
     bool caseSensitive;
     bool diacriticSensitive;
+
+    android::UniqueEnv env;
+    jni::UniqueObject<android::Collator> collator;
+    jni::UniqueObject<android::Locale> locale;
 };
 
 

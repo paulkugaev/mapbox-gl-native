@@ -21,11 +21,18 @@ namespace android {
 
 class Locale {
 public:
-    static constexpr auto Name() { return "java/text/Locale"; };
+    static constexpr auto Name() { return "java/util/Locale"; };
 
+    /* Requires API level 21+ in order to support script/variant
     static jni::Object<Locale> forLanguageTag(jni::JNIEnv&, jni::String);
-
     static jni::String toLanguageTag(jni::JNIEnv&, jni::Object<Locale>);
+    */
+    static jni::Object<Locale> getDefault(jni::JNIEnv&);
+    static jni::String getLanguage(jni::JNIEnv&, jni::Object<Locale>);
+    static jni::String getCountry(jni::JNIEnv&, jni::Object<Locale>);
+
+    static jni::Object<Locale> New(jni::JNIEnv&, jni::String);
+    static jni::Object<Locale> New(jni::JNIEnv&, jni::String, jni::String);
 
     static jni::Class<Locale> javaClass;
 
