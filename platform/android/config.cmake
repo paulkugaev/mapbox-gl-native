@@ -46,6 +46,8 @@ macro(mbgl_platform_core)
         PRIVATE platform/default/string_stdlib.cpp
         PRIVATE platform/default/bidi.cpp
         PRIVATE platform/default/thread_local.cpp
+        PRIVATE platform/default/unaccent.cpp
+        PRIVATE platform/default/unaccent.hpp
         PRIVATE platform/default/utf.cpp
 
         # Image handling

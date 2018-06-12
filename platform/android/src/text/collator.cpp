@@ -2,13 +2,12 @@
 #include <mbgl/text/language_tag.hpp>
 #include <mbgl/util/platform.hpp>
 
+#include <unaccent.hpp>
+
 #include <jni/jni.hpp>
 
 #include "../attach_env.hpp"
 #include "collator_jni.hpp"
-
-
-#include <mbgl/util/logging.hpp>
 
 namespace mbgl {
 namespace android {
@@ -100,32 +99,27 @@ public:
         , diacriticSensitive(diacriticSensitive_)
         , env(android::AttachEnv())
     {
-        mbgl::Log::Debug(Event::General, "creating locale");
         LanguageTag languageTag = locale_ ? LanguageTag::fromBCP47(*locale_) : LanguageTag();
         if (!languageTag.language) {
-            mbgl::Log::Debug(Event::General, "getDefault");
             locale = android::Locale::getDefault(*env).NewGlobalRef(*env);
         } else if (!languageTag.region) {
-            mbgl::Log::Debug(Event::General, "language only");
             locale = android::Locale::New(*env,
                                           jni::Make<jni::String>(*env, *(languageTag.language)))
                     .NewGlobalRef(*env);
         } else {
-            mbgl::Log::Debug(Event::General, "language and region");
             locale = android::Locale::New(*env,
                                           jni::Make<jni::String>(*env, *(languageTag.language)),
                                           jni::Make<jni::String>(*env, *(languageTag.region)))
                     .NewGlobalRef(*env);
         }
-        mbgl::Log::Debug(Event::General, "creating collator");
         collator = android::Collator::getInstance(*env, *locale).NewGlobalRef(*env);;
-        mbgl::Log::Debug(Event::General, "setting strength");
-        if (!diacriticSensitive) {
-            // Only look for "base letter" differences, we'll look at case independently
+        if (!diacriticSensitive && !caseSensitive) {
             android::Collator::setStrength(*env, *collator, 0 /*PRIMARY*/);
         } else if (diacriticSensitive && !caseSensitive) {
             android::Collator::setStrength(*env, *collator, 1 /*SECONDARY*/);
-        } else if (diacriticSensitive && caseSensitive) {
+        } else if (caseSensitive) {
+            // If we're case-sensitive and diacritic-sensitive, we use a case-sensitive collator
+            // and a fallback implementation of diacritic-insensitivity.
             android::Collator::setStrength(*env, *collator, 2 /*TERTIARY*/);
         }
     }
@@ -137,30 +131,22 @@ public:
     }
 
     int compare(const std::string& lhs, const std::string& rhs) const {
-        jni::String jlhs = jni::Make<jni::String>(*env, lhs);
-        jni::String jrhs = jni::Make<jni::String>(*env, rhs);
+        bool useUnaccent = !diacriticSensitive && caseSensitive;
+        // java.text.Collator doesn't support a diacritic-insensitive/case-sensitive collation
+        // order, so we have to compromise here. We use Android's case-sensitive Collator
+        // against strings that have been "unaccented" using non-locale-aware nunicode logic.
+        // Because of the difference in locale-awareness, this means turning on case-sensitivity
+        // can _potentially_ change compare results for strings that don't actually have any case
+        // differences.
+        jni::String jlhs = jni::Make<jni::String>(*env, useUnaccent ?
+                                                        platform::unaccent(lhs) :
+                                                        lhs);
+        jni::String jrhs = jni::Make<jni::String>(*env, useUnaccent ?
+                                                        platform::unaccent(rhs) :
+                                                        rhs);
 
-        mbgl::Log::Debug(Event::General, "comparing strings");
         jni::jint result = android::Collator::compare(*env, *collator, jlhs, jrhs);;
-        if (!diacriticSensitive && caseSensitive) {
-            // java.text.Collator doesn't support a diacritic-insensitive/case-sensitive collation
-            // order, so we have to compromise a little here.
-            // (1) We use platform::lowercase to isolate case differences from other differences,
-            //     but it's not locale aware.
-            // (2) If we detect a case-only difference, we know the result is non-zero, but we
-            //     have to fall back to the base sort order, which _might_ pick up a diacritic
-            //     difference that ideally we'd ignore.
-            if (!result) {
-                // We compared at PRIMARY so we know there's no base letter difference
-                auto lowerLhs = platform::lowercase(lhs);
-                auto lowerRhs = platform::lowercase(rhs);
-                if (lowerLhs != lowerRhs) {
-                    // Case-only difference, fall back to base sort order
-                    result = lowerLhs < lowerRhs ? -1 : 1;
-                }
-            }
 
-        }
         jni::DeleteLocalRef(*env, jlhs);
         jni::DeleteLocalRef(*env, jrhs);
 
@@ -168,7 +154,6 @@ public:
     }
 
     std::string resolvedLocale() const {
-        mbgl::Log::Debug(Event::General, "resolving locale");
         jni::String jLanguage = android::Locale::getLanguage(*env, *locale);
         std::string language = jni::Make<std::string>(*env, jLanguage);
         jni::DeleteLocalRef(*env, jLanguage);

@@ -61,6 +61,8 @@ macro(mbgl_platform_core)
         PRIVATE platform/default/collator.cpp
         PRIVATE platform/default/local_glyph_rasterizer.cpp
         PRIVATE platform/default/thread_local.cpp
+        PRIVATE platform/default/unaccent.cpp
+        PRIVATE platform/default/unaccent.hpp
         PRIVATE platform/default/utf.cpp
 
         # Image handling
