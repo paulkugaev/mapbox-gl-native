@@ -1,5 +1,6 @@
 #include <mbgl/style/expression/collator.hpp>
 #include <mbgl/util/platform.hpp>
+#include <nunicode/libnu.h>
 #include <unaccent.hpp>
 
 /*
