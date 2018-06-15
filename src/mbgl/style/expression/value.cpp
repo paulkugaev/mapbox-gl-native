@@ -122,8 +122,8 @@ mbgl::Value ValueConverter<mbgl::Value>::fromExpressionValue(const Value& value)
             };
         },
         [&](const Collator&)->mbgl::Value {
-            // Collators are excluded from constant folding and there's no Literal parser
-            // for them so there shouldn't be any way to serialize this value.
+            // fromExpressionValue can't be used for Collator values,
+            // because they have no meaningful representation as an mbgl::Value
             assert(false);
             return mbgl::Value();
         },
