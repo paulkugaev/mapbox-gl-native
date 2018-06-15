@@ -45,9 +45,9 @@ void writeJSON(rapidjson::Writer<rapidjson::StringBuffer>& writer, const Value& 
         [&] (const std::string& s) { writer.String(s); },
         [&] (const Color& c) { writer.String(c.stringify()); },
         [&] (const Collator&) {
-            // TODO: Collators are excluded from constant folding and there's no Literal parser
+            // Collators are excluded from constant folding and there's no Literal parser
             // for them so there shouldn't be any way to serialize this value.
-            // Is there a better way to omit this?
+            assert(false);
         },
         [&] (const std::vector<Value>& arr) {
             writer.StartArray();
@@ -121,8 +121,11 @@ mbgl::Value ValueConverter<mbgl::Value>::fromExpressionValue(const Value& value)
                 array[3],
             };
         },
-        [&](const Collator& collator)->mbgl::Value {
-            return collator.serialize();
+        [&](const Collator&)->mbgl::Value {
+            // Collators are excluded from constant folding and there's no Literal parser
+            // for them so there shouldn't be any way to serialize this value.
+            assert(false);
+            return mbgl::Value();
         },
         [&](const std::vector<Value>& values)->mbgl::Value {
             std::vector<mbgl::Value> converted;

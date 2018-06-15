@@ -5,7 +5,7 @@ namespace mbgl {
 namespace style {
 namespace expression {
 
-Equals::Equals(std::unique_ptr<Expression> lhs_, std::unique_ptr<Expression> rhs_, std::unique_ptr<Expression> collator_, bool negate_)
+Equals::Equals(std::unique_ptr<Expression> lhs_, std::unique_ptr<Expression> rhs_, optional<std::unique_ptr<Expression>> collator_, bool negate_)
     : Expression(type::Boolean),
       lhs(std::move(lhs_)),
       rhs(std::move(rhs_)),
@@ -22,8 +22,8 @@ EvaluationResult Equals::evaluate(const EvaluationContext& params) const {
 
     bool result;
     
-    if (collator.get()) {
-        auto collatorResult = collator->evaluate(params);
+    if (collator) {
+        auto collatorResult = (*collator)->evaluate(params);
         const Collator& c = collatorResult->get<Collator>();
         result = c.compare(lhsResult->get<std::string>(), rhsResult->get<std::string>()) == 0;
     } else {
@@ -38,8 +38,8 @@ EvaluationResult Equals::evaluate(const EvaluationContext& params) const {
 void Equals::eachChild(const std::function<void(const Expression&)>& visit) const {
     visit(*lhs);
     visit(*rhs);
-    if (collator.get()) {
-        visit(*collator);
+    if (collator) {
+        visit(**collator);
     }
 }
 
@@ -92,18 +92,17 @@ ParseResult Equals::parse(const Convertible& value, ParsingContext& ctx) {
         return ParseResult();
     }
     
-    std::unique_ptr<Expression> collatorResult;
+    ParseResult collatorParseResult;
     if (length == 4) {
         if (lhsType != type::String && rhsType != type::String) {
             ctx.error("Cannot use collator to compare non-string types.");
             return ParseResult();
         }
-        ParseResult collatorParseResult = ctx.parse(arrayMember(value, 3), 3, {type::Collator});
+        collatorParseResult = ctx.parse(arrayMember(value, 3), 3, {type::Collator});
         if (!collatorParseResult) return ParseResult();
-        collatorResult = std::move(*collatorParseResult);
     }
 
-    return ParseResult(std::make_unique<Equals>(std::move(*lhs), std::move(*rhs), std::move(collatorResult), negate));
+    return ParseResult(std::make_unique<Equals>(std::move(*lhs), std::move(*rhs), std::move(collatorParseResult), negate));
 }
 
 } // namespace expression

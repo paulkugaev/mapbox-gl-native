@@ -179,7 +179,7 @@ private:
 
 
 Collator::Collator(bool caseSensitive, bool diacriticSensitive, optional<std::string> locale_)
-    : impl(std::make_unique<Impl>(caseSensitive, diacriticSensitive, std::move(locale_)))
+    : impl(std::make_shared<Impl>(caseSensitive, diacriticSensitive, std::move(locale_)))
 {}
 
 bool Collator::operator==(const Collator& other) const {
@@ -193,11 +193,6 @@ int Collator::compare(const std::string& lhs, const std::string& rhs) const {
 std::string Collator::resolvedLocale() const {
     return impl->resolvedLocale();
 }
-
-mbgl::Value Collator::serialize() const {
-    return mbgl::Value(true);
-}
-
 
 } // namespace expression
 } // namespace style

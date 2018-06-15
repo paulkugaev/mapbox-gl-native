@@ -14,7 +14,7 @@ class CollatorExpression : public Expression {
 public:
     CollatorExpression(std::unique_ptr<Expression> caseSensitive,
              std::unique_ptr<Expression> diacriticSensitive,
-             std::unique_ptr<Expression> locale);
+             optional<std::unique_ptr<Expression>> locale);
 
     EvaluationResult evaluate(const EvaluationContext&) const override;
     static ParseResult parse(const mbgl::style::conversion::Convertible&, ParsingContext&);
@@ -36,7 +36,7 @@ public:
 private:
     std::unique_ptr<Expression> caseSensitive;
     std::unique_ptr<Expression> diacriticSensitive;
-    std::unique_ptr<Expression> locale;
+    optional<std::unique_ptr<Expression>> locale;
 };
 
 } // namespace expression

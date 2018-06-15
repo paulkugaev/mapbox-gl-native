@@ -13,7 +13,7 @@ namespace expression {
 
 class Equals : public Expression {
 public:
-    Equals(std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs, std::unique_ptr<Expression> collator, bool negate);
+    Equals(std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs, optional<std::unique_ptr<Expression>> collator, bool negate);
 
     static ParseResult parse(const mbgl::style::conversion::Convertible&, ParsingContext&);
 
@@ -26,7 +26,7 @@ public:
 private:
     std::unique_ptr<Expression> lhs;
     std::unique_ptr<Expression> rhs;
-    std::unique_ptr<Expression> collator;
+    optional<std::unique_ptr<Expression>> collator;
     bool negate;
 };
 

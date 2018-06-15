@@ -6,7 +6,7 @@
 #import <Foundation/Foundation.h>
 
 namespace mbgl {
-    
+
 std::string localeIdentifier(const std::string& bcp47) {
     // Based on Apple docs at:
     // https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPInternational/LanguageandLocaleIDs/LanguageandLocaleIDs.html#//apple_ref/doc/uid/10000171i-CH15-SW9
@@ -17,16 +17,16 @@ std::string localeIdentifier(const std::string& bcp47) {
     } else {
         localeIdentifier << *(languageTag.language);
     }
-    
+
     if (languageTag.script) {
         localeIdentifier << "-" << *(languageTag.script);
     }
-    
+
     if (languageTag.region) {
         // TODO: Does locale identifier support UN M.49? If not we need to do a conversion or document
         localeIdentifier << "_" << *(languageTag.region);
     }
-    
+
     return localeIdentifier.str();
 }
 
@@ -42,12 +42,12 @@ public:
                 [[NSLocale alloc] initWithLocaleIdentifier:@((*locale_).c_str())] :
                 [NSLocale currentLocale])
     {}
-    
+
     bool operator==(const Impl& other) const {
         return options == other.options &&
             [[locale localeIdentifier] isEqualToString:[other.locale localeIdentifier]];
     }
-    
+
     int compare(const std::string& lhs, const std::string& rhs) const {
         NSString* nsLhs = @(lhs.c_str());
         NSString* nsRhs = @(rhs.c_str());
@@ -55,10 +55,10 @@ public:
         // experimentally we've checked that if LHS is a prefix of RHS compare returns -1
         // https://developer.apple.com/documentation/foundation/nsstring/1414561-compare
         NSRange compareRange = NSMakeRange(0, nsLhs.length);
-        
+
         return [nsLhs compare:nsRhs options:options range:compareRange locale:locale];
     }
-    
+
     std::string resolvedLocale() const {
         return [locale localeIdentifier].UTF8String;
     }
@@ -69,7 +69,7 @@ private:
 
 
 Collator::Collator(bool caseSensitive, bool diacriticSensitive, optional<std::string> locale_)
-    : impl(std::make_unique<Impl>(caseSensitive, diacriticSensitive, std::move(locale_)))
+    : impl(std::make_shared<Impl>(caseSensitive, diacriticSensitive, std::move(locale_)))
 {}
 
 bool Collator::operator==(const Collator& other) const {
@@ -83,10 +83,6 @@ int Collator::compare(const std::string& lhs, const std::string& rhs) const {
 std::string Collator::resolvedLocale() const {
     return impl->resolvedLocale();
 }
-mbgl::Value Collator::serialize() const {
-    return mbgl::Value(true);
-}
-
 
 } // namespace expression
 } // namespace style

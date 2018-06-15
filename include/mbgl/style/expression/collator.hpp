@@ -19,11 +19,6 @@ public:
     int compare(const std::string& lhs, const std::string& rhs) const;
 
     std::string resolvedLocale() const;
-
-    // TODO: This serialization shouldn't ever be used, but since we're part of
-    // mbgl::style::expression::Value we're expected to have a serialize()
-    mbgl::Value serialize() const;
-
 private:
     class Impl;
     // TODO: Figure out right copy semantics for Collator -- sharing an underlying implementation
